@@ -1,6 +1,6 @@
 <div align="center">
 
-# Aranya Trinetra - The Third Eye of the Forest
+# Maitri - The Third Eye of the Forest
 
 **Seeing the unseen, protecting the vulnerable**
 
@@ -20,7 +20,7 @@
 
 ## 🌟 What Makes This Special?
 
-> **Aranya Trinetra** isn't just another machine learning project — it's your gateway to intelligent data analysis with state-of-the-art algorithms that deliver results you can trust.
+> **Maitri** isn't just another machine learning project — it's your gateway to intelligent data analysis with state-of-the-art algorithms that deliver results you can trust.
 
 ### ✨ Features
 
