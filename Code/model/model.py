@@ -13,6 +13,8 @@ from geopy.distance import geodesic
 import os
 import warnings
 from collections import Counter
+import pickle
+import joblib
 warnings.filterwarnings('ignore')
 
 class ProductionWildlifeConflictPredictor:
@@ -79,10 +81,11 @@ class ProductionWildlifeConflictPredictor:
         }
     
     def find_training_dataset(self):
-        """Find the ml_training_dataset.csv file"""
+        """Find the ml_training_dataset.csv file in your project structure"""
+        # Based on your actual project structure
         possible_paths = [
+            "indian_wildlife_data/ml_training_dataset.csv",  # Most likely path
             "ml_training_dataset.csv",
-            "indian_wildlife_data/ml_training_dataset.csv", 
             "./indian_wildlife_data/ml_training_dataset.csv",
             "../indian_wildlife_data/ml_training_dataset.csv",
             os.path.join("indian_wildlife_data", "ml_training_dataset.csv")
@@ -92,6 +95,7 @@ class ProductionWildlifeConflictPredictor:
             if os.path.exists(path):
                 return path
         
+        # Fallback: search recursively
         for root, dirs, files in os.walk("."):
             if "ml_training_dataset.csv" in files:
                 return os.path.join(root, "ml_training_dataset.csv")
@@ -542,6 +546,100 @@ class ProductionWildlifeConflictPredictor:
             'top_features_reg': dict(reg_features[:3]),
             'top_features_clf': dict(clf_features[:3])
         }
+    
+    def save_models(self, model_dir="model/trained_models"):
+        """Save trained models to disk in your project structure"""
+        if self.regression_model is None:
+            raise ValueError("No trained models to save. Call train_models() first.")
+        
+        # Create directory if it doesn't exist
+        os.makedirs(model_dir, exist_ok=True)
+        
+        # Save all model components
+        joblib.dump(self.regression_model, os.path.join(model_dir, "regression_model.pkl"))
+        joblib.dump(self.classification_model, os.path.join(model_dir, "classification_model.pkl"))
+        joblib.dump(self.scaler, os.path.join(model_dir, "scaler.pkl"))
+        joblib.dump(self.label_encoders, os.path.join(model_dir, "label_encoders.pkl"))
+        
+        # Save training metadata
+        metadata = {
+            'training_date': datetime.now().isoformat(),
+            'model_version': '1.0.0',
+            'feature_names': [
+                'base_risk', 'forest_proximity', 'corridor_density', 
+                'historical_incidents', 'seasonal_risk', 'distance_risk',
+                'urban_pressure', 'month_sin', 'month_cos'
+            ],
+            'alert_categories': list(self.label_encoders['alert_category'].classes_),
+            'training_stats': self.training_stats
+        }
+        
+        with open(os.path.join(model_dir, "model_metadata.json"), 'w') as f:
+            json.dump(metadata, f, indent=2, default=str)
+        
+        print(f"✅ Models saved to {model_dir}/")
+        print(f"📁 Files created:")
+        print(f"  🤖 regression_model.pkl")
+        print(f"  🎯 classification_model.pkl") 
+        print(f"  📏 scaler.pkl")
+        print(f"  🏷️ label_encoders.pkl")
+        print(f"  📋 model_metadata.json")
+        
+        return model_dir
+    
+    def load_models(self, model_dir="model/trained_models"):
+        """Load trained models from disk"""
+        try:
+            # Load model components
+            self.regression_model = joblib.load(os.path.join(model_dir, "regression_model.pkl"))
+            self.classification_model = joblib.load(os.path.join(model_dir, "classification_model.pkl"))
+            self.scaler = joblib.load(os.path.join(model_dir, "scaler.pkl"))
+            self.label_encoders = joblib.load(os.path.join(model_dir, "label_encoders.pkl"))
+            
+            # Load metadata if available
+            metadata_path = os.path.join(model_dir, "model_metadata.json")
+            if os.path.exists(metadata_path):
+                with open(metadata_path, 'r') as f:
+                    metadata = json.load(f)
+                    self.training_stats = metadata.get('training_stats', {})
+                    
+                print(f"✅ Models loaded from {model_dir}/")
+                print(f"📅 Training Date: {metadata.get('training_date', 'Unknown')}")
+                print(f"🔢 Model Version: {metadata.get('model_version', 'Unknown')}")
+            else:
+                print(f"✅ Models loaded from {model_dir}/ (no metadata available)")
+            
+            return True
+            
+        except FileNotFoundError as e:
+            print(f"❌ No saved models found in {model_dir}/")
+            print(f"💡 Train models first using: predictor.train_models()")
+            return False
+        except Exception as e:
+            print(f"❌ Error loading models: {str(e)}")
+            return False
+    
+    def get_model_info(self):
+        """Get information about loaded/trained models"""
+        if self.regression_model is None:
+            return {"status": "No models loaded", "trained": False}
+        
+        info = {
+            "status": "Models loaded and ready",
+            "trained": True,
+            "regression_model": str(type(self.regression_model).__name__),
+            "classification_model": str(type(self.classification_model).__name__),
+            "alert_categories": list(self.label_encoders.get('alert_category', {}).classes_) if 'alert_category' in self.label_encoders else [],
+            "feature_count": len(self.scaler.mean_) if hasattr(self.scaler, 'mean_') else 0
+        }
+        
+        if self.training_stats:
+            info.update({
+                "training_samples": self.training_stats.get('training_samples', 'Unknown'),
+                "test_samples": self.training_stats.get('test_samples', 'Unknown')
+            })
+        
+        return info
     
     def predict_risk(self, location, date=None):
         """Production-ready risk prediction"""
